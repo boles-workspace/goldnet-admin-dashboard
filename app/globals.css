@@ -1,0 +1,77 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="ltr"] {
+  direction: ltr;
+  text-align: left;
+}
+
+/* RTL Specific Styles */
+[dir="rtl"] .ant-layout-sider {
+  box-shadow: -2px 0 8px 0 rgba(29, 35, 41, 0.05);
+}
+
+[dir="ltr"] .ant-layout-sider {
+  box-shadow: 2px 0 8px 0 rgba(29, 35, 41, 0.05);
+}
+
+/* Ant Design overrides */
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  box-shadow: 0 2px 8px 0 rgba(29, 35, 41, 0.05);
+}
+
+/* RTL Typography */
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] p,
+[dir="rtl"] span,
+[dir="rtl"] div {
+  text-align: right;
+}
+
+/* RTL Menu */
+[dir="rtl"] .ant-menu-item,
+[dir="rtl"] .ant-menu-submenu-title {
+  text-align: right;
+}
+
+/* RTL Table */
+[dir="rtl"] .ant-table {
+  direction: rtl;
+}
+
+[dir="rtl"] .ant-table-thead > tr > th {
+  text-align: right;
+}
+
+[dir="rtl"] .ant-table-tbody > tr > td {
+  text-align: right;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px !important;
+  }
+}
