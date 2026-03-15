@@ -10,6 +10,9 @@ import subscriptionReducer from './slices/subscriptionSlice';
 import notificationReducer from './slices/notificationSlice';
 import languageReducer from './slices/languageSlice';
 
+// RTK Query API slices
+import { baseApi } from './api/baseApi';
+
 // Persist configuration
 const persistConfig = {
   key: 'root',
@@ -29,13 +32,15 @@ export const store = configureStore({
     subscription: subscriptionReducer,
     notification: notificationReducer,
     language: persistedLanguageReducer,
+    // RTK Query API reducer
+    [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(baseApi.middleware), // Add RTK Query middleware
 });
 
 export const persistor = persistStore(store);

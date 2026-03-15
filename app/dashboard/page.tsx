@@ -10,6 +10,7 @@ import {
   ArrowDownOutlined,
 } from '@ant-design/icons';
 import MainLayout from '@/components/layout/MainLayout';
+import AuthGuard from '@/middleware/AuthGuard';
 import { useAppSelector } from '@/store/hooks';
 
 export default function DashboardPage() {
@@ -107,8 +108,9 @@ export default function DashboardPage() {
   ];
 
   return (
-    <MainLayout>
-      <div className="dashboard-overview">
+    <AuthGuard>
+      <MainLayout>
+        <div className="dashboard-overview">
         <h1 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>{t.title}</h1>
 
         <Row gutter={[16, 16]}>
@@ -187,7 +189,8 @@ export default function DashboardPage() {
             size="middle"
           />
         </Card>
-      </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
+    </AuthGuard>
   );
 }

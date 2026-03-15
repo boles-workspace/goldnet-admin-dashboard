@@ -25,8 +25,30 @@ function AntdConfigProvider({ children }: { children: React.ReactNode }) {
       direction={direction}
       theme={{
         token: {
-          colorPrimary: '#1890ff',
+          colorPrimary: '#f59e0b', // Gold/Amber for GoldNet branding
+          colorSuccess: '#52c41a',
+          colorWarning: '#faad14',
+          colorError: '#ff4d4f',
+          colorInfo: '#1890ff',
           borderRadius: 6,
+          colorBgLayout: '#f0f2f5',
+        },
+        components: {
+          Layout: {
+            headerBg: '#ffffff',
+            siderBg: '#001529',
+            bodyBg: '#f0f2f5',
+          },
+          Menu: {
+            darkItemBg: '#001529',
+            darkItemSelectedBg: '#f59e0b',
+            darkItemHoverBg: '#112545',
+          },
+          Button: {
+            colorPrimary: '#f59e0b',
+            colorPrimaryHover: '#d97706',
+            colorPrimaryActive: '#b45309',
+          },
         },
       }}
     >

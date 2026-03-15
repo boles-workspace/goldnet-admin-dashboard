@@ -1,18 +1,33 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Table, Tag, Space, Button, Input, Select, Modal, message } from 'antd';
-import { SearchOutlined, CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Space, Button, Input, Modal, message, Descriptions, Image, Spin } from 'antd';
+import { SearchOutlined, CheckOutlined, CloseOutlined, EyeOutlined, DatabaseOutlined, FileImageOutlined } from '@ant-design/icons';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAppSelector } from '@/store/hooks';
+import {
+  useListOrganizationsQuery,
+  useApproveOrganizationMutation,
+  useProvisionTenantMutation,
+  type Organization,
+} from '@/store/api/organizationApi';
 
-const { Search } = Input;
-const { Option } = Select;
+const { Search, TextArea } = Input;
 
 export default function OrganizationsPage() {
   const { current: language } = useAppSelector((state) => state.language);
-  const [selectedOrg, setSelectedOrg] = useState<any>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [approveModalVisible, setApproveModalVisible] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [searchText, setSearchText] = useState('');
+
+  // API hooks
+  const { data: organizationsData, isLoading, refetch } = useListOrganizationsQuery({ status: statusFilter });
+  const [approveOrganization, { isLoading: isApproving }] = useApproveOrganizationMutation();
+  const [provisionTenant, { isLoading: isProvisioning }] = useProvisionTenantMutation();
 
   const translations = {
     en: {
@@ -41,6 +56,26 @@ export default function OrganizationsPage() {
       close: 'Close',
       approveSuccess: 'Organization approved successfully',
       rejectSuccess: 'Organization rejected successfully',
+      approveConfirm: 'Approve Organization',
+      approveMessage: 'Are you sure you want to approve this organization? This will activate their account and move their payment receipt to permanent storage.',
+      rejectConfirm: 'Reject Organization',
+      rejectMessage: 'Please provide a reason for rejection:',
+      rejectionReasonPlaceholder: 'Enter rejection reason...',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      provisionDatabase: 'Provision Database',
+      provisionSuccess: 'Database provisioned successfully',
+      provisionConfirm: 'Provision Tenant Database',
+      provisionMessage: 'This will create a dedicated database for this organization with all necessary tables and seed data. Continue?',
+      owner: 'Owner',
+      plan: 'Plan',
+      billingCycle: 'Billing Cycle',
+      totalPrice: 'Total Price',
+      transactionRef: 'Transaction Reference',
+      receipt: 'Payment Receipt',
+      slug: 'Slug',
+      tenantId: 'Tenant ID',
+      approved: 'Approved',
     },
     ar: {
       title: 'إدارة المؤسسات',
@@ -68,88 +103,113 @@ export default function OrganizationsPage() {
       close: 'إغلاق',
       approveSuccess: 'تمت الموافقة على المؤسسة بنجاح',
       rejectSuccess: 'تم رفض المؤسسة بنجاح',
+      approveConfirm: 'الموافقة على المؤسسة',
+      approveMessage: 'هل أنت متأكد من الموافقة على هذه المؤسسة؟ سيتم تفعيل حسابهم ونقل إيصال الدفع إلى التخزين الدائم.',
+      rejectConfirm: 'رفض المؤسسة',
+      rejectMessage: 'يرجى تقديم سبب الرفض:',
+      rejectionReasonPlaceholder: 'أدخل سبب الرفض...',
+      cancel: 'إلغاء',
+      confirm: 'تأكيد',
+      provisionDatabase: 'إنشاء قاعدة البيانات',
+      provisionSuccess: 'تم إنشاء قاعدة البيانات بنجاح',
+      provisionConfirm: 'إنشاء قاعدة بيانات المستأجر',
+      provisionMessage: 'سيتم إنشاء قاعدة بيانات مخصصة لهذه المؤسسة مع جميع الجداول والبيانات الأولية. متابعة؟',
+      owner: 'المالك',
+      plan: 'الخطة',
+      billingCycle: 'دورة الفوترة',
+      totalPrice: 'السعر الإجمالي',
+      transactionRef: 'رقم المعاملة',
+      receipt: 'إيصال الدفع',
+      slug: 'المعرف',
+      tenantId: 'معرف المستأجر',
+      approved: 'مُوافق عليه',
     },
   };
 
   const t = translations[language];
 
-  // Sample data
-  const organizations = [
-    {
-      key: '1',
-      _id: '1',
-      name: 'Gold Traders Co.',
-      email: 'info@goldtraders.com',
-      phone: '+20 123 456 7890',
-      type: ['Gold Trader'],
-      status: 'PENDING',
-      maxBranches: 5,
-      maxUsers: 20,
-      createdAt: '2026-03-07',
-    },
-    {
-      key: '2',
-      _id: '2',
-      name: 'Jewelry Workshop Ltd.',
-      email: 'contact@jewelryworkshop.com',
-      phone: '+20 123 456 7891',
-      type: ['Jewelry Workshop'],
-      status: 'ACTIVE',
-      maxBranches: 3,
-      maxUsers: 10,
-      createdAt: '2026-03-06',
-    },
-    {
-      key: '3',
-      _id: '3',
-      name: 'Supreme Jewelry Shop',
-      email: 'info@supremejewelry.com',
-      phone: '+20 123 456 7892',
-      type: ['Jewelry Shop'],
-      status: 'PENDING',
-      maxBranches: 2,
-      maxUsers: 5,
-      createdAt: '2026-03-05',
-    },
-    {
-      key: '4',
-      _id: '4',
-      name: 'Gold Distributor LLC',
-      email: 'sales@golddistributor.com',
-      phone: '+20 123 456 7893',
-      type: ['Gold Distributor'],
-      status: 'ACTIVE',
-      maxBranches: 10,
-      maxUsers: 50,
-      createdAt: '2026-03-04',
-    },
-  ];
+  const organizations = organizationsData?.data || [];
 
-  const handleApprove = async (orgId: string) => {
+  const handleApprove = async (org: Organization) => {
+    setSelectedOrg(org);
+    setApproveModalVisible(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!selectedOrg) return;
+
     try {
-      // API call would go here
-      // await fetch(`http://localhost:3000/organizations/${orgId}/approve`, { method: 'PUT' })
+      await approveOrganization({
+        id: selectedOrg._id,
+        data: { status: 'APPROVED' },
+      }).unwrap();
+
       message.success(t.approveSuccess);
-    } catch (error) {
-      message.error('Failed to approve organization');
+      setApproveModalVisible(false);
+      setSelectedOrg(null);
+      refetch();
+    } catch (error: any) {
+      message.error(error?.data?.message || 'Failed to approve organization');
     }
   };
 
-  const handleReject = async (orgId: string) => {
-    try {
-      // API call would go here
-      message.success(t.rejectSuccess);
-    } catch (error) {
-      message.error('Failed to reject organization');
+  const handleReject = async (org: Organization) => {
+    setSelectedOrg(org);
+    setRejectModalVisible(true);
+    setRejectionReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!selectedOrg || !rejectionReason.trim()) {
+      message.error('Please provide a rejection reason');
+      return;
     }
+
+    try {
+      await approveOrganization({
+        id: selectedOrg._id,
+        data: { status: 'REJECTED', rejectionReason },
+      }).unwrap();
+
+      message.success(t.rejectSuccess);
+      setRejectModalVisible(false);
+      setSelectedOrg(null);
+      setRejectionReason('');
+      refetch();
+    } catch (error: any) {
+      message.error(error?.data?.message || 'Failed to reject organization');
+    }
+  };
+
+  const handleProvisionDatabase = async (org: Organization) => {
+    Modal.confirm({
+      title: t.provisionConfirm,
+      content: t.provisionMessage,
+      okText: t.confirm,
+      cancelText: t.cancel,
+      onOk: async () => {
+        try {
+          await provisionTenant(org._id).unwrap();
+          message.success(t.provisionSuccess);
+          refetch();
+        } catch (error: any) {
+          message.error(error?.data?.message || 'Failed to provision database');
+        }
+      },
+    });
   };
 
   const columns = [
     {
       title: t.name,
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: any, b: any) => a.name.localeCompare(b.name),
+      dataIndex: 'nameEn',
+      key: 'nameEn',
+      sorter: (a: Organization, b: Organization) => a.nameEn.localeCompare(b.nameEn),
+      filteredValue: searchText ? [searchText] : null,
+      onFilter: (value: any, record: Organization) =>
+        record.nameEn.toLowerCase().includes(value.toLowerCase()) ||
+        record.nameAr.toLowerCase().includes(value.toLowerCase()) ||
+        record.email.toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: t.email,
@@ -158,9 +218,9 @@ export default function OrganizationsPage() {
     },
     {
       title: t.type,
-      dataIndex: 'type',
-      key: 'type',
-      render: (types: string[]) => types.join(', '),
+      dataIndex: 'types',
+      key: 'types',
+      render: (types: string[]) => types.map(t => t.replace('_', ' ')).join(', '),
     },
     {
       title: t.status,
@@ -168,20 +228,16 @@ export default function OrganizationsPage() {
       key: 'status',
       render: (status: string) => {
         const colorMap: Record<string, string> = {
-          PENDING: 'orange',
-          ACTIVE: 'green',
-          SUSPENDED: 'red',
-          REJECTED: 'volcano',
+          pending: 'orange',
+          approved: 'blue',
+          active: 'green',
+          suspended: 'red',
+          rejected: 'volcano',
+          expired: 'default',
+          cancelled: 'default',
         };
-        return <Tag color={colorMap[status]}>{t[status.toLowerCase() as keyof typeof t] || status}</Tag>;
+        return <Tag color={colorMap[status.toLowerCase()]}>{t[status.toLowerCase() as keyof typeof t] || status.toUpperCase()}</Tag>;
       },
-      filters: [
-        { text: t.pending, value: 'PENDING' },
-        { text: t.active, value: 'ACTIVE' },
-        { text: t.suspended, value: 'SUSPENDED' },
-        { text: t.rejected, value: 'REJECTED' },
-      ],
-      onFilter: (value: any, record: any) => record.status === value,
     },
     {
       title: t.created,
@@ -192,25 +248,25 @@ export default function OrganizationsPage() {
     {
       title: t.actions,
       key: 'actions',
-      render: (_: any, record: any) => (
+      render: (_: any, record: Organization) => (
         <Space>
           <Button
             type="link"
             icon={<EyeOutlined />}
             onClick={() => {
               setSelectedOrg(record);
-              setModalVisible(true);
+              setDetailsModalVisible(true);
             }}
           >
             {t.view}
           </Button>
-          {record.status === 'PENDING' && (
+          {record.status === 'pending' && (
             <>
               <Button
                 type="link"
                 icon={<CheckOutlined />}
                 style={{ color: 'green' }}
-                onClick={() => handleApprove(record._id)}
+                onClick={() => handleApprove(record)}
               >
                 {t.approve}
               </Button>
@@ -218,11 +274,22 @@ export default function OrganizationsPage() {
                 type="link"
                 danger
                 icon={<CloseOutlined />}
-                onClick={() => handleReject(record._id)}
+                onClick={() => handleReject(record)}
               >
                 {t.reject}
               </Button>
             </>
+          )}
+          {record.status === 'approved' && !record.activatedAt && (
+            <Button
+              type="link"
+              icon={<DatabaseOutlined />}
+              style={{ color: '#1890ff' }}
+              onClick={() => handleProvisionDatabase(record)}
+              loading={isProvisioning}
+            >
+              {t.provisionDatabase}
+            </Button>
           )}
         </Space>
       ),
@@ -241,43 +308,109 @@ export default function OrganizationsPage() {
               prefix={<SearchOutlined />}
               style={{ width: 300 }}
               allowClear
+              onSearch={setSearchText}
+              onChange={(e) => !e.target.value && setSearchText('')}
             />
           </Space>
 
-          <Table
-            columns={columns}
-            dataSource={organizations}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `${language === 'en' ? 'Total' : 'المجموع'} ${total} ${language === 'en' ? 'items' : 'عنصر'}`,
-            }}
-          />
+          <Spin spinning={isLoading}>
+            <Table
+              columns={columns}
+              dataSource={organizations.map(org => ({ ...org, key: org._id }))}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `${language === 'en' ? 'Total' : 'المجموع'} ${total} ${language === 'en' ? 'items' : 'عنصر'}`,
+              }}
+            />
+          </Spin>
         </Card>
 
+        {/* Details Modal */}
         <Modal
           title={t.details}
-          open={modalVisible}
-          onCancel={() => setModalVisible(false)}
+          open={detailsModalVisible}
+          onCancel={() => setDetailsModalVisible(false)}
           footer={[
-            <Button key="close" onClick={() => setModalVisible(false)}>
+            <Button key="close" onClick={() => setDetailsModalVisible(false)}>
               {t.close}
             </Button>,
           ]}
-          width={600}
+          width={800}
         >
           {selectedOrg && (
-            <div>
-              <p><strong>{t.name}:</strong> {selectedOrg.name}</p>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label={t.name} span={2}>{language === 'en' ? selectedOrg.nameEn : selectedOrg.nameAr}</Descriptions.Item>
+              <Descriptions.Item label={t.slug}>{selectedOrg.slug}</Descriptions.Item>
+              <Descriptions.Item label={t.tenantId}>{selectedOrg.tenantId}</Descriptions.Item>
+              <Descriptions.Item label={t.email}>{selectedOrg.email}</Descriptions.Item>
+              <Descriptions.Item label={t.phone}>{selectedOrg.phone}</Descriptions.Item>
+              <Descriptions.Item label={t.type} span={2}>{selectedOrg.types.join(', ')}</Descriptions.Item>
+              <Descriptions.Item label={t.status}>
+                <Tag color={selectedOrg.status === 'active' ? 'green' : selectedOrg.status === 'pending' ? 'orange' : 'red'}>
+                  {selectedOrg.status.toUpperCase()}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label={t.created}>{new Date(selectedOrg.createdAt).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label={t.maxBranches}>{selectedOrg.numberOfBranches}</Descriptions.Item>
+              <Descriptions.Item label={t.maxUsers}>{selectedOrg.maxUsers}</Descriptions.Item>
+              {selectedOrg.totalPrice && (
+                <>
+                  <Descriptions.Item label={t.totalPrice}>{selectedOrg.totalPrice} EGP</Descriptions.Item>
+                  <Descriptions.Item label={t.billingCycle}>{selectedOrg.billingCycle}</Descriptions.Item>
+                </>
+              )}
+              {selectedOrg.transactionReference && (
+                <Descriptions.Item label={t.transactionRef} span={2}>{selectedOrg.transactionReference}</Descriptions.Item>
+              )}
+              {selectedOrg.paymentReceiptUrl && (
+                <Descriptions.Item label={t.receipt} span={2}>
+                  <a href={selectedOrg.paymentReceiptUrl} target="_blank" rel="noopener noreferrer">
+                    <Button icon={<FileImageOutlined />}>View Receipt</Button>
+                  </a>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+          )}
+        </Modal>
+
+        {/* Approve Confirmation Modal */}
+        <Modal
+          title={t.approveConfirm}
+          open={approveModalVisible}
+          onOk={confirmApprove}
+          onCancel={() => setApproveModalVisible(false)}
+          okText={t.confirm}
+          cancelText={t.cancel}
+          confirmLoading={isApproving}
+        >
+          <p>{t.approveMessage}</p>
+          {selectedOrg && (
+            <div style={{ marginTop: 16 }}>
+              <p><strong>{t.name}:</strong> {language === 'en' ? selectedOrg.nameEn : selectedOrg.nameAr}</p>
               <p><strong>{t.email}:</strong> {selectedOrg.email}</p>
-              <p><strong>{t.phone}:</strong> {selectedOrg.phone}</p>
-              <p><strong>{t.type}:</strong> {selectedOrg.type.join(', ')}</p>
-              <p><strong>{t.status}:</strong> <Tag color={selectedOrg.status === 'ACTIVE' ? 'green' : 'orange'}>{selectedOrg.status}</Tag></p>
-              <p><strong>{t.maxBranches}:</strong> {selectedOrg.maxBranches}</p>
-              <p><strong>{t.maxUsers}:</strong> {selectedOrg.maxUsers}</p>
-              <p><strong>{t.created}:</strong> {selectedOrg.createdAt}</p>
             </div>
           )}
+        </Modal>
+
+        {/* Reject Confirmation Modal */}
+        <Modal
+          title={t.rejectConfirm}
+          open={rejectModalVisible}
+          onOk={confirmReject}
+          onCancel={() => setRejectModalVisible(false)}
+          okText={t.confirm}
+          cancelText={t.cancel}
+          confirmLoading={isApproving}
+        >
+          <p>{t.rejectMessage}</p>
+          <TextArea
+            rows={4}
+            placeholder={t.rejectionReasonPlaceholder}
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            style={{ marginTop: 16 }}
+          />
         </Modal>
       </div>
     </MainLayout>

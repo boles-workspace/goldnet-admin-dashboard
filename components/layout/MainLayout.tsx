@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Badge, Button, Drawer } from 'antd';
 import {
   DashboardOutlined,
+  ShoppingOutlined,
   TeamOutlined,
   CreditCardOutlined,
   DollarOutlined,
@@ -55,6 +56,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const translations = {
     en: {
       dashboard: 'Dashboard',
+      plans: 'Plans',
       organizations: 'Organizations',
       subscriptions: 'Subscriptions',
       payments: 'Payments',
@@ -69,6 +71,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     },
     ar: {
       dashboard: 'لوحة التحكم',
+      plans: 'الخطط',
       organizations: 'المؤسسات',
       subscriptions: 'الاشتراكات',
       payments: 'المدفوعات',
@@ -92,6 +95,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
       label: t.dashboard,
       className: 'dashboard-menu',
       onClick: () => router.push('/dashboard'),
+    },
+    {
+      key: '/plans',
+      icon: <ShoppingOutlined />,
+      label: t.plans,
+      className: 'plans-menu',
+      onClick: () => router.push('/plans'),
     },
     {
       key: '/organizations',
@@ -300,8 +310,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             margin: '24px 16px',
             padding: 24,
             minHeight: 'calc(100vh - 112px)',
-            background: '#fff',
-            borderRadius: 8,
+            background: '#f0f2f5',
           }}
         >
           {children}
