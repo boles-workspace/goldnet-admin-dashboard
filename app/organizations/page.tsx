@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Table, Tag, Space, Button, Input, Modal, message, Descriptions, Image, Spin } from 'antd';
+import { Card, Table, Tag, Space, Button, Input, Modal, message, Descriptions, Image, Spin, Select } from 'antd';
 import { SearchOutlined, CheckOutlined, CloseOutlined, EyeOutlined, DatabaseOutlined, FileImageOutlined } from '@ant-design/icons';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAppSelector } from '@/store/hooks';
@@ -9,7 +9,10 @@ import {
   useListOrganizationsQuery,
   useApproveOrganizationMutation,
   useProvisionTenantMutation,
+  useListDatabaseClustersQuery,
+  useAssignDatabaseClusterMutation,
   type Organization,
+  type DatabaseCluster,
 } from '@/store/api/organizationApi';
 
 const { Search, TextArea } = Input;
@@ -20,14 +23,18 @@ export default function OrganizationsPage() {
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [approveModalVisible, setApproveModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [clusterSelectionModalVisible, setClusterSelectionModalVisible] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedClusterId, setSelectedClusterId] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [searchText, setSearchText] = useState('');
 
   // API hooks
   const { data: organizationsData, isLoading, refetch } = useListOrganizationsQuery({ status: statusFilter });
+  const { data: clustersData } = useListDatabaseClustersQuery({ activeOnly: true });
   const [approveOrganization, { isLoading: isApproving }] = useApproveOrganizationMutation();
   const [provisionTenant, { isLoading: isProvisioning }] = useProvisionTenantMutation();
+  const [assignDatabaseCluster, { isLoading: isAssigningCluster }] = useAssignDatabaseClusterMutation();
 
   const translations = {
     en: {
@@ -76,6 +83,14 @@ export default function OrganizationsPage() {
       slug: 'Slug',
       tenantId: 'Tenant ID',
       approved: 'Approved',
+      cluster: 'Database Cluster',
+      selectCluster: 'Select Database Cluster',
+      selectClusterMessage: 'Select a database cluster for this organization before provisioning:',
+      clusterAssigned: 'Database cluster assigned successfully',
+      tier: 'Tier',
+      region: 'Region',
+      capacity: 'Capacity',
+      defaultCluster: 'Default',
     },
     ar: {
       title: 'إدارة المؤسسات',
@@ -123,6 +138,14 @@ export default function OrganizationsPage() {
       slug: 'المعرف',
       tenantId: 'معرف المستأجر',
       approved: 'مُوافق عليه',
+      cluster: 'قاعدة البيانات',
+      selectCluster: 'اختر قاعدة البيانات',
+      selectClusterMessage: 'اختر قاعدة البيانات للمؤسسة قبل الإنشاء:',
+      clusterAssigned: 'تم تعيين قاعدة البيانات بنجاح',
+      tier: 'المستوى',
+      region: 'المنطقة',
+      capacity: 'السعة',
+      defaultCluster: 'افتراضي',
     },
   };
 
@@ -182,21 +205,34 @@ export default function OrganizationsPage() {
   };
 
   const handleProvisionDatabase = async (org: Organization) => {
-    Modal.confirm({
-      title: t.provisionConfirm,
-      content: t.provisionMessage,
-      okText: t.confirm,
-      cancelText: t.cancel,
-      onOk: async () => {
-        try {
-          await provisionTenant(org._id).unwrap();
-          message.success(t.provisionSuccess);
-          refetch();
-        } catch (error: any) {
-          message.error(error?.data?.message || 'Failed to provision database');
-        }
-      },
-    });
+    setSelectedOrg(org);
+    setSelectedClusterId(org.databaseClusterId);
+    setClusterSelectionModalVisible(true);
+  };
+
+  const confirmProvision = async () => {
+    if (!selectedOrg) return;
+
+    try {
+      // If a new cluster was selected, assign it first
+      if (selectedClusterId && selectedClusterId !== selectedOrg.databaseClusterId) {
+        await assignDatabaseCluster({
+          organizationId: selectedOrg._id,
+          clusterId: selectedClusterId,
+        }).unwrap();
+        message.success(t.clusterAssigned);
+      }
+
+      // Then provision the tenant database
+      await provisionTenant(selectedOrg._id).unwrap();
+      message.success(t.provisionSuccess);
+      setClusterSelectionModalVisible(false);
+      setSelectedOrg(null);
+      setSelectedClusterId(undefined);
+      refetch();
+    } catch (error: any) {
+      message.error(error?.data?.message || 'Failed to provision database');
+    }
   };
 
   const columns = [
@@ -410,6 +446,52 @@ export default function OrganizationsPage() {
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
             style={{ marginTop: 16 }}
+          />
+        </Modal>
+
+        {/* Cluster Selection Modal */}
+        <Modal
+          title={t.selectCluster}
+          open={clusterSelectionModalVisible}
+          onOk={confirmProvision}
+          onCancel={() => {
+            setClusterSelectionModalVisible(false);
+            setSelectedOrg(null);
+            setSelectedClusterId(undefined);
+          }}
+          okText={t.provisionDatabase}
+          cancelText={t.cancel}
+          confirmLoading={isProvisioning || isAssigningCluster}
+          width={700}
+        >
+          <p>{t.selectClusterMessage}</p>
+          {selectedOrg && (
+            <div style={{ marginTop: 16, marginBottom: 24 }}>
+              <p><strong>{t.name}:</strong> {language === 'en' ? selectedOrg.nameEn : selectedOrg.nameAr}</p>
+              {selectedOrg.databaseClusterName && (
+                <p><strong>{t.cluster}:</strong> {selectedOrg.databaseClusterName}</p>
+              )}
+            </div>
+          )}
+          <Select
+            style={{ width: '100%' }}
+            placeholder={t.selectCluster}
+            value={selectedClusterId}
+            onChange={setSelectedClusterId}
+            options={clustersData?.data?.map((cluster: DatabaseCluster) => ({
+              value: cluster._id,
+              label: (
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    {cluster.name} {cluster.isDefault && `(${t.defaultCluster})`}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    {t.tier}: {cluster.tier} | {t.region}: {cluster.region || 'N/A'} |
+                    {t.capacity}: {cluster.currentTenants}/{cluster.maxTenants || '∞'}
+                  </div>
+                </div>
+              ),
+            }))}
           />
         </Modal>
       </div>

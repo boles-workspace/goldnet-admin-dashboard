@@ -24,6 +24,8 @@ export interface Organization {
   totalPrice?: number;
   transactionReference?: string;
   paymentReceiptUrl?: string;
+  databaseClusterId?: string;
+  databaseClusterName?: string;
   status: 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'expired' | 'cancelled';
   activatedAt?: string;
   approvedAt?: string;
@@ -31,6 +33,30 @@ export interface Organization {
   rejectionReason?: string;
   suspendedAt?: string;
   suspensionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatabaseCluster {
+  _id: string;
+  name: string;
+  description?: string;
+  connectionUri: string;
+  tier: 'FREE' | 'SHARED' | 'DEDICATED' | 'PREMIUM';
+  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE';
+  region?: string;
+  provider?: string;
+  currentTenants: number;
+  maxTenants?: number;
+  isActive: boolean;
+  isDefault: boolean;
+  metadata?: {
+    storageSize?: number;
+    ramSize?: number;
+    cpuCores?: number;
+    backupEnabled?: boolean;
+    encryptionEnabled?: boolean;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -85,6 +111,29 @@ export const organizationApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Organization'],
     }),
+
+    // List all database clusters
+    listDatabaseClusters: builder.query<{ data: DatabaseCluster[]; total: number }, { activeOnly?: boolean }>({
+      query: ({ activeOnly = true }) => ({
+        url: '/tenants/clusters/list',
+        params: { activeOnly: activeOnly.toString() },
+      }),
+      transformResponse: (response: any) => ({
+        data: response.data || [],
+        total: response.total || 0,
+      }),
+    }),
+
+    // Assign database cluster to organization
+    assignDatabaseCluster: builder.mutation<Organization, { organizationId: string; clusterId: string }>({
+      query: ({ organizationId, clusterId }) => ({
+        url: `/tenants/${organizationId}/assign-cluster`,
+        method: 'POST',
+        body: { clusterId },
+      }),
+      transformResponse: (response: any) => response.data,
+      invalidatesTags: ['Organization'],
+    }),
   }),
 });
 
@@ -93,4 +142,6 @@ export const {
   useGetOrganizationQuery,
   useApproveOrganizationMutation,
   useProvisionTenantMutation,
+  useListDatabaseClustersQuery,
+  useAssignDatabaseClusterMutation,
 } = organizationApi;
