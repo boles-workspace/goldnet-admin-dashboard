@@ -9,6 +9,14 @@ export const baseApi = createApi({
     credentials: 'include', // Important for cookies
     prepareHeaders: (headers) => {
       headers.set('Content-Type', 'application/json');
+
+      // Add Accept-Language header for translated error messages
+      // Get language from localStorage or default to Arabic
+      const language = typeof window !== 'undefined'
+        ? localStorage.getItem('language') || 'ar'
+        : 'ar';
+      headers.set('Accept-Language', language);
+
       return headers;
     },
   }),
